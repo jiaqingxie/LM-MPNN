@@ -4,8 +4,7 @@ import torch
 from tqdm import tqdm
 import torch.nn.functional as F
 from torch_geometric.data import DataLoader
-from torch_geometric.data import Batch
-from transformers import AutoModelWithLMHead, AutoTokenizer
+from transformers import AutoModelWithLMHead
 
 
 def test(loader, model):
@@ -14,8 +13,8 @@ def test(loader, model):
 
     for data in loader:
         data = data.to("cuda")
-        error += (model(data) * std - data.y * std).abs().sum().item()  # MAE
-    return error / len(loader)
+        error += (model(data.x, data.attention_mask) * std - data.y[:, target] * std).abs().sum().item()  # MAE
+    return error / len(loader.dataset)
 
 
 if __name__ == "__main__":
@@ -24,8 +23,7 @@ if __name__ == "__main__":
     print("finish loading")
     target = 0 
     num_epochs = 100
-    std = lm_qm9.y.std(dim=0, keepdim=True)
-  
+    std = lm_qm9.y[:, target].std(dim=0, keepdim=True).to("cuda")
 
     print("loading training dataset...")
     val_lm_qm9 = lm_qm9[:10000].copy()
@@ -41,21 +39,29 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_lm_qm9, batch_size=128, shuffle=False)
 
     print("start traning")
-    optimizer = torch.optim.Adam(property_model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(property_model.parameters(), lr=1e-3)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
                                                        factor=0.7, patience=5,
                                                        min_lr=0.00001)
     for epoch in range(num_epochs):
+        lr = scheduler.optimizer.param_groups[0]['lr']
+        property_model.train()
+        loss_all = 0
         for batch in tqdm(train_loader):
-            property_model.train()
             batch = batch.to("cuda")
             outputs = property_model(batch.x, batch.attention_mask)
             loss = F.mse_loss(outputs, batch.y[:, target])
-            
+            # print(loss)
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # print(loss)
-        valid_error =  test(valid_loader, property_model)
-        print(valid_error)
+            loss_all += loss.item() * batch.num_graphs
+        train_loss = loss_all / len(train_loader.dataset)
+
+        valid_error = test(valid_loader, property_model)
         scheduler.step(valid_error)
+        test_error = test(test_loader, property_model)
+
+        print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {loss:.7f}, '
+            f'Val MAE: {valid_error:.7f}, Test MAE: {test_error:.7f}')

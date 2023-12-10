@@ -42,8 +42,3 @@ class LM_QM9(InMemoryDataset):
         tokenizer = AutoTokenizer.from_pretrained("seyonec/{}".format(pretrain_model))
         tokenized_features = tokenizer.batch_encode_plus(smiles_list, padding=self.padding, truncation=True, return_tensors='pt')
         return tokenized_features['input_ids']
-
-# Usage
-if __name__ == "__main__":
-    modified_dataset = LM_QM9(root='data/ModifiedQM9')
-    print(modified_dataset[2].x)
