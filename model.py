@@ -1,5 +1,4 @@
 import torch.nn as nn
-import torch
 class ChemBERTaForPropertyPrediction(nn.Module):
     def __init__(self, chemberta_model):
         super().__init__()
@@ -8,6 +7,5 @@ class ChemBERTaForPropertyPrediction(nn.Module):
 
     def forward(self, input_ids, attention_mask=None):
         outputs = self.chemberta(input_ids, attention_mask=attention_mask, output_hidden_states=True)
-        hidden_states = outputs.hidden_states
-        # h = torch.Tensor([t[0] for t in outputs.hidden_states])
-        # return self.regressor(h)
+        hidden_states = outputs.hidden_states[-1]
+        return self.regressor(hidden_states[:,0])

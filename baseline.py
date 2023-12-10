@@ -20,7 +20,7 @@ if __name__ == "__main__":
     test_lm_qm9 = lm_qm9[120000:].copy()
 
     pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
-    property_model = ChemBERTaForPropertyPrediction(pretrain_chemberta)
+    property_model = ChemBERTaForPropertyPrediction(pretrain_chemberta).to("cuda")
 
     
     train_loader = DataLoader(train_lm_qm9, batch_size=32, shuffle=True)
@@ -28,12 +28,13 @@ if __name__ == "__main__":
 
     print("start traning")
     optimizer = torch.optim.Adam(property_model.parameters(), lr=1e-4)
-    for epoch in tqdm(range(num_epochs)):
-        for batch in train_loader:
-            # print(batch.x)
+    for epoch in range(num_epochs):
+        for batch in tqdm(train_loader):
+            batch = batch.to("cuda")
             outputs = property_model(batch.x, batch.attention_mask)
-            print(outputs)
             loss = loss_func(outputs, batch.y)
+            print(loss)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            print(loss)
