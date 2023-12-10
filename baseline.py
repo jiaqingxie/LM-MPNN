@@ -30,8 +30,9 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(property_model.parameters(), lr=1e-4)
     for epoch in tqdm(range(num_epochs)):
         for batch in train_loader:
-            print(batch.x)
+            # print(batch.x)
             outputs = property_model(batch.x, batch.attention_mask)
+            print(outputs)
             loss = loss_func(outputs, batch.y)
             optimizer.zero_grad()
             loss.backward()
