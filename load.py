@@ -30,8 +30,10 @@ class LM_QM9(InMemoryDataset):
 
         data_list = []
         for idx, data in enumerate(qm9):
-            data.x = tokenized_features[idx]
+            data.x = tokenized_features[idx].unsqueeze(0)
             data_list.append(data)
+            is_padding = (data.x == 1) 
+            data.attention_mask =  ~is_padding
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
