@@ -19,26 +19,26 @@ def test(loader, model):
 if __name__ == "__main__":
     print("loading dataset...")
     name = "ESOL"
-    lm_qm9 = LM_MoleculeNet(root='data/ModifiedMol/{}'.format(name), name=name).shuffle()
+    lm_mol = LM_MoleculeNet(root='data/ModifiedMol/{}'.format(name), name=name).shuffle()
     print("finish loading")
     target = 0 
     num_epochs = 100
-    std = lm_qm9.y[:, 0].std(dim=0, keepdim=True).to("cuda")
+    std = lm_mol.y[:, 0].std(dim=0, keepdim=True).to("cuda")
 
-    len_dataset = len(lm_qm9)
+    len_dataset = len(lm_mol)
 
     print("loading training dataset...")
-    val_lm_qm9 = lm_qm9[: int(len_dataset * 0.1)].copy()
-    test_lm_qm9 = lm_qm9[int(len_dataset * 0.1) :int(len_dataset * 0.2)].copy()
-    train_lm_qm9 = lm_qm9[int(len_dataset * 0.2):].copy()
+    val_lm_mol = lm_mol[: int(len_dataset * 0.1)].copy()
+    test_lm_mol = lm_mol[int(len_dataset * 0.1) :int(len_dataset * 0.2)].copy()
+    train_lm_mol = lm_mol[int(len_dataset * 0.2):].copy()
 
     pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
     property_model = ChemBERTaForPropertyPrediction(pretrain_chemberta).to("cuda")
 
     
-    train_loader = DataLoader(train_lm_qm9, batch_size=128, shuffle=True)
-    valid_loader = DataLoader(val_lm_qm9, batch_size=128, shuffle=False)
-    test_loader = DataLoader(test_lm_qm9, batch_size=128, shuffle=False)
+    train_loader = DataLoader(train_lm_mol, batch_size=128, shuffle=True)
+    valid_loader = DataLoader(val_lm_mol, batch_size=128, shuffle=False)
+    test_loader = DataLoader(test_lm_mol, batch_size=128, shuffle=False)
 
     print("start traning")
     optimizer = torch.optim.Adam(property_model.parameters(), lr=1e-4)
