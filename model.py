@@ -13,7 +13,7 @@ class ChemBERTaForPropertyPrediction(nn.Module):
     def forward(self, input_ids, attention_mask=None):
         outputs = self.chemberta(input_ids, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
-        return self.regressor(hidden_states[:,0]).view(-1)
+        return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0]
 
 class NNConvModel(nn.Module):
     def __init__(self, num_features, dim, graph_embedding_dim):
