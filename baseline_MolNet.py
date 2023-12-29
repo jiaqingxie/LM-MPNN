@@ -6,13 +6,13 @@ import torch.nn.functional as F
 from torch_geometric.data import DataLoader
 from transformers import AutoModelWithLMHead
 
-def test(loader, model):
+def test(loader, model, target, std):
     model.eval()
     error = 0
 
     for data in loader:
         data = data.to("cuda")
-        error += (model(data.x, data.attention_mask) * std - data.y[:, target] * std).abs().sum().item()  # MAE
+        error += (model(data.x, data.attention_mask)[0] * std - data.y[:, target] * std).abs().sum().item()  # MAE
     return error / len(loader.dataset)
 
 
@@ -51,7 +51,8 @@ if __name__ == "__main__":
         loss_all = 0
         for batch in train_loader:
             batch = batch.to("cuda")
-            outputs = property_model(batch.x, batch.attention_mask)
+            outputs, _ = property_model(batch.x, batch.attention_mask)
+
             loss = F.mse_loss(outputs, batch.y[:, 0])
             optimizer.zero_grad()
             loss.backward()
@@ -59,9 +60,9 @@ if __name__ == "__main__":
             loss_all += loss.item() * batch.num_graphs
         train_loss = loss_all / len(train_loader.dataset)
 
-        valid_error = test(valid_loader, property_model)
+        valid_error = test(valid_loader, property_model, target, std)
         scheduler.step(valid_error)
-        test_error = test(test_loader, property_model)
+        test_error = test(test_loader, property_model, target, std)
 
         print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {loss:.7f}, '
             f'Val MAE: {valid_error:.7f}, Test MAE: {test_error:.7f}')
