@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.nn import GRU, Linear, ReLU, Sequential
 from torch_geometric.nn import NNConv, Set2Set
 
+
 class ChemBERTaForPropertyPrediction(nn.Module):
     def __init__(self, chemberta_model):
         super().__init__()
@@ -14,6 +15,7 @@ class ChemBERTaForPropertyPrediction(nn.Module):
         outputs = self.chemberta(input_ids, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
         return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0]
+
 
 class NNConvModel(nn.Module):
     def __init__(self, num_features, dim, graph_embedding_dim):
@@ -42,4 +44,29 @@ class NNConvModel(nn.Module):
         out = F.relu(graph_embed)
         out = self.lin2(out)
         return out.view(-1), graph_embed
+
+
+class HighwayGateLayer(nn.Module):
+    def __init__(self, in_out_size, bias=True):
+        super(HighwayGateLayer, self).__init__()
+        self.transform = nn.Linear(in_out_size, in_out_size, bias=bias)
+
+    def forward(self, x, y):
+        out_transform = torch.sigmoid(self.transform(x))
+        return out_transform * x + (1 - out_transform) * y
+
+
+class FusionModel(nn.Module):
+    def __init__(self, chemberta_model, num_features, dim, graph_embedding_dim):
+        super().__init__()
+        self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model)
+        self.gnn_model = NNConvModel(num_features, dim, graph_embedding_dim)
+        self.gate = HighwayGateLayer(graph_embedding_dim)
+        self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
+
+    def forward(self, batch):
+        _, bert_embed = self.bert_model(batch.input_ids, batch.attention_mask)
+        _, gnn_embed = self.gnn_model(batch)
+        fusion_embed = self.gate(bert_embed, gnn_embed)
+        return self.regressor(fusion_embed)
 
