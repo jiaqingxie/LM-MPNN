@@ -55,7 +55,9 @@ if __name__ == "__main__":
                                                                factor=0.7, patience=5,
                                                                min_lr=0.00001)
 
+
     for epoch in range(num_epochs):
+        lr = bert_scheduler.optimizer.param_groups[0]['lr']
         bert_model.train()
         gnn_model.train()
         loss_all = 0
