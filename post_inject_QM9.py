@@ -20,7 +20,9 @@ if __name__ == "__main__":
     # settings
     target = 0
     num_epochs = 100
-    gnn_hidden_dim, graph_embedding_dim = 64, 768
+    pretrain_chemberta = AutoModelWithLMHead.from_pretrained("DeepChem/ChemBERTa-10M-MTR")
+    # pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
+    gnn_hidden_dim, graph_embedding_dim = 64, pretrain_chemberta.config.hidden_size
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # dataset
@@ -40,7 +42,6 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
 
     # fusion model
-    pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
     fusion_model = FusionModel(pretrain_chemberta,
                                dataset.num_features,
                                gnn_hidden_dim,

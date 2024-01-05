@@ -2,8 +2,8 @@ from load import *
 from model import *
 import torch
 import torch.nn.functional as F
-from torch_geometric.data import DataLoader
-from transformers import AutoModelWithLMHead
+from torch_geometric.datasets import QM9
+from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 
@@ -13,7 +13,7 @@ def test(loader, model, target, std):
 
     for data in loader:
         data = data.to(device)
-        error += (model(data.input_ids, data.attention_mask)[0] * std - data.y[:, target] * std).abs().sum().item()  # MAE
+        error += (model(data)[0] * std - data.y[:, target] * std).abs().sum().item()  # MAE
     return error / len(loader.dataset)
 
 
@@ -21,9 +21,8 @@ if __name__ == "__main__":
     # settings
     target = 0
     num_epochs = 100
-    pretrain_chemberta = AutoModelWithLMHead.from_pretrained("DeepChem/ChemBERTa-10M-MTR")
-    # pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    hidden_dim, graph_embedding_dim = 64, 768
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # dataset
     print("Loading and preprocessing dataset...")
@@ -42,29 +41,31 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
 
     # model
-    property_model = ChemBERTaForPropertyPrediction(pretrain_chemberta).to(device)
-    optimizer = torch.optim.Adam(property_model.parameters(), lr=1e-3)
+    gnn_model = NNConvModel(dataset.num_features, hidden_dim, graph_embedding_dim).to(device)
+    optimizer = torch.optim.Adam(gnn_model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
-                                                       factor=0.7, patience=5,
-                                                       min_lr=0.00001)
+                                                           factor=0.7, patience=5,
+                                                           min_lr=0.00001)
 
     for epoch in range(num_epochs):
         lr = scheduler.optimizer.param_groups[0]['lr']
-        property_model.train()
+        gnn_model.train()
         loss_all = 0
         for batch in tqdm(train_loader):
             batch = batch.to(device)
-            outputs, _, _ = property_model(batch.input_ids, batch.attention_mask)
+            outputs, _ = gnn_model(batch)
             loss = F.mse_loss(outputs, batch.y[:, target])
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             loss_all += loss.item() * batch.num_graphs
 
         train_loss = loss_all / len(train_loader.dataset)
-        valid_error = test(valid_loader, property_model, target, target_std)
+        valid_error = test(valid_loader, gnn_model, target, target_std)
         scheduler.step(valid_error)
-        test_error = test(test_loader, property_model, target, target_std)
+        test_error = test(test_loader, gnn_model, target, target_std)
 
         print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {train_loss:.7f}, '
-            f'Val MAE: {valid_error:.7f}, Test MAE: {test_error:.7f}')
+              f'Val MAE: {valid_error:.7f}, Test MAE: {test_error:.7f}')
+
