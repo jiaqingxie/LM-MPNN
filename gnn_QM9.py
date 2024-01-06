@@ -53,7 +53,7 @@ if __name__ == "__main__":
         loss_all = 0
         for batch in tqdm(train_loader):
             batch = batch.to(device)
-            outputs, _ = gnn_model(batch)
+            outputs, _, _ = gnn_model(batch)
             loss = F.mse_loss(outputs, batch.y[:, target])
 
             optimizer.zero_grad()

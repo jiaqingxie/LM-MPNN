@@ -22,7 +22,7 @@ if __name__ == "__main__":
     num_epochs = 100
     pretrain_chemberta = AutoModelWithLMHead.from_pretrained("DeepChem/ChemBERTa-10M-MTR")
     # pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
-    gnn_hidden_dim, graph_embedding_dim = 64, pretrain_chemberta.config.hidden_size
+    gnn_hidden_dim, graph_embedding_dim = pretrain_chemberta.config.hidden_size, pretrain_chemberta.config.hidden_size
     weight_cl = 1.0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -61,24 +61,14 @@ if __name__ == "__main__":
         gnn_model.train()
         loss_all = 0
         for batch in tqdm(train_loader):
-            """
-            Contrastive idea: Within a batch,
-                              bert_embed (batch_size, 768) as anchor,
-                              gnn_embed (batch_size, 768) as positive,
-                              neg_gnn_embed (batch_size, 768) as negative.
-            TODO: 1. Make bert_pred and gnn_embed in the same scale.
-                  2. Change negative sampling approaches.
-                  3. Find the best value for coefficient weight_cl.
-                  4. Modify/Change models.
-            """
-
             batch = batch.to(device)
-            bert_pred, bert_graph_embed, _ = bert_model(batch.input_ids, batch.attention_mask)
-            _, gnn_graph_embed, _ = gnn_model(batch)
-            neg_gnn_graph_embed = gnn_graph_embed[torch.roll(torch.arange(len(batch)), -1)]
+            bert_pred, _, bert_node_embed = bert_model(batch.input_ids, batch.attention_mask)
+            _, _, gnn_node_embed = gnn_model(batch)
+            bert_node_embed = bert_node_embed[batch.mol_mask]
+            neg_gnn_node_embed = gnn_node_embed[torch.randperm(gnn_node_embed.shape[0])]
 
             target_loss = F.mse_loss(bert_pred, batch.y[:, target])
-            contrastive_loss = F.triplet_margin_loss(bert_graph_embed, gnn_graph_embed, neg_gnn_graph_embed)
+            contrastive_loss = F.triplet_margin_loss(bert_node_embed, gnn_node_embed, neg_gnn_node_embed)
             loss = target_loss + weight_cl * contrastive_loss
 
             bert_optimizer.zero_grad()

@@ -48,20 +48,12 @@ class NNConvModel(nn.Module):
             out, h = self.gru(m.unsqueeze(0), h)
             out = out.squeeze(0)
 
-        out = self.set2set(out, data.batch)
+        node_embed = out
+        out = self.set2set(node_embed, data.batch)
         graph_embed = self.lin1(out)
         out = F.relu(graph_embed)
         out = self.lin2(out)
-        return out.view(-1), graph_embed
-
-
-class GNNModel(nn.Module):
-    # TODO: Design a GNN model that outputs node embeddings.
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, data):
-        return
+        return out.view(-1), graph_embed, node_embed
 
 
 class HighwayGateLayer(nn.Module):
@@ -84,7 +76,7 @@ class FusionModel(nn.Module):
 
     def forward(self, batch):
         _, bert_graph_embed, _ = self.bert_model(batch.input_ids, batch.attention_mask)
-        _, gnn_graph_embed = self.gnn_model(batch)
+        _, gnn_graph_embed, _ = self.gnn_model(batch)
         fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
         return self.regressor(fusion_graph_embed).view(-1)
 
