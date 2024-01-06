@@ -35,14 +35,14 @@ class LM_QM9(InMemoryDataset):
 
         data_list = []
         for idx, data in enumerate(temp_list):
-            if data.x.shape[0] == 0:
-                continue
             data.x = data.x.to(dtype=torch.float32)
             data.edge_attr = data.edge_attr.to(dtype=torch.float32)
             data.y = qm9[idx].y
             data.input_ids = input_ids[idx].unsqueeze(0)
             data.attention_mask = ~(data.input_ids == 0)
-            data.mol_mask = torch.isin(data.input_ids, torch.tensor([16, 15, 23, 25, 19, 44, 27])) # C c N n O o F
+            data.mol_mask = torch.isin(data.input_ids, torch.tensor([16, 15, 23, 25, 19, 44, 27]))  # C c N n O o F
+            if (data.x.shape[0] == 0) or (data.x.shape[0] != data.mol_mask.sum()):
+                continue
             data_list.append(data)
 
         data, slices = self.collate(data_list)
@@ -85,14 +85,14 @@ class LM_MoleculeNet(InMemoryDataset):
 
         data_list = []
         for idx, data in enumerate(temp_list):
-            if data.x.shape[0] == 0:
-                continue
             data.x = data.x.to(dtype=torch.float32)
             data.edge_attr = data.edge_attr.to(dtype=torch.float32)
             data.y = mol[idx].y
             data.input_ids = input_ids[idx].unsqueeze(0)
             data.attention_mask = ~(data.input_ids == 0)
             data.mol_mask = torch.isin(data.input_ids, torch.tensor([16, 15, 23, 25, 19, 44, 27]))  # C c N n O o F
+            if (data.x.shape[0] == 0) or (data.x.shape[0] != data.mol_mask.sum()):
+                continue
             data_list.append(data)
 
         data, slices = self.collate(data_list)
