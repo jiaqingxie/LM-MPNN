@@ -11,13 +11,13 @@ class ChemBERTaForPropertyPrediction(nn.Module):
         self.chemberta = chemberta_model
         self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
 
-    def forward(self, input_ids, attention_mask=None):
+    def forward(self, input_ids, attention_mask):
         """
         Output: prediction: (batch_size,)
                 graph embedding: (batch_size, hidden_size)
                 node embedding: (batch_size, seq_len, hidden_size)
         """
-        outputs = self.chemberta(input_ids, attention_mask=attention_mask, output_hidden_states=True)
+        outputs = self.chemberta(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
         return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0], hidden_states
 
@@ -67,12 +67,12 @@ class HighwayGateLayer(nn.Module):
         return out_transform * x + (1 - out_transform) * y
 
 
-class FusionModel(nn.Module):
-    def __init__(self, chemberta_model, num_features, dim, graph_embedding_dim):
+class LateFusionModel(nn.Module):
+    def __init__(self, chemberta_model, num_features, node_embed_dim, graph_embed_dim):
         super().__init__()
         self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model)
-        self.gnn_model = NNConvModel(num_features, dim, graph_embedding_dim)
-        self.gate = HighwayGateLayer(graph_embedding_dim)
+        self.gnn_model = NNConvModel(num_features, node_embed_dim, graph_embed_dim)
+        self.gate = HighwayGateLayer(graph_embed_dim)
         self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
 
     def forward(self, batch):
@@ -80,4 +80,29 @@ class FusionModel(nn.Module):
         _, gnn_graph_embed, _ = self.gnn_model(batch)
         fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
         return self.regressor(fusion_graph_embed).view(-1)
+
+
+class JointFusionModel(nn.Module):
+    def __init__(self, chemberta_model, num_features, node_embed_dim, graph_embed_dim):
+        super().__init__()
+        self.chemberta = chemberta_model
+        self.node_embed_dim = node_embed_dim
+        self.word_embeddings = nn.Embedding(chemberta_model.config.vocab_size,
+                                            chemberta_model.config.hidden_size,
+                                            padding_idx=chemberta_model.config.pad_token_id)
+        self.gnn_model = NNConvModel(num_features, node_embed_dim, graph_embed_dim)
+        self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
+
+    def forward(self, batch):
+        input_ids, attention_mask, mol_mask = batch.input_ids, batch.attention_mask, batch.mol_mask
+        bert_embeds = self.word_embeddings(input_ids)
+        _, _, gnn_embeds = self.gnn_model(batch)
+
+        bert_embeds = bert_embeds.reshape(-1, self.node_embed_dim)
+        bert_embeds[batch.mol_mask.view(-1)] += gnn_embeds
+        fused_embeds = bert_embeds.reshape(batch.num_graphs, -1, self.node_embed_dim)
+
+        outputs = self.chemberta(inputs_embeds=fused_embeds, attention_mask=attention_mask, output_hidden_states=True)
+        hidden_states = outputs.hidden_states[-1]
+        return self.regressor(hidden_states[:,0]).view(-1)
 
