@@ -6,10 +6,11 @@ from torch_geometric.nn import NNConv, Set2Set
 
 
 class ChemBERTaForPropertyPrediction(nn.Module):
-    def __init__(self, chemberta_model):
+    def __init__(self, chemberta_model, out_dim, task):
         super().__init__()
+        self.task = task
         self.chemberta = chemberta_model
-        self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
+        self.regressor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, input_ids, attention_mask):
         """
@@ -19,21 +20,25 @@ class ChemBERTaForPropertyPrediction(nn.Module):
         """
         outputs = self.chemberta(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
-        return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0], hidden_states
+        if self.task == "reg":
+            return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0], hidden_states
+        elif self.task == "clf":
+            return F.log_softmax(self.regressor(hidden_states[:,0]), 1), hidden_states[:,0], hidden_states
+            
 
 
 class NNConvModel(nn.Module):
-    def __init__(self, num_features, dim, graph_embedding_dim):
+    def __init__(self, num_features, dim, graph_embedding_dim, out_dim, task):
         super().__init__()
         self.lin0 = Linear(num_features, dim)
-
+        
         nn = Sequential(Linear(3, 128), ReLU(), Linear(128, dim * dim))
         self.conv = NNConv(dim, dim, nn, aggr='mean')
         self.gru = GRU(dim, dim)
-
+        self.task = task
         self.set2set = Set2Set(dim, processing_steps=3)
         self.lin1 = torch.nn.Linear(2 * dim, graph_embedding_dim)
-        self.lin2 = torch.nn.Linear(graph_embedding_dim, 1)
+        self.lin2 = torch.nn.Linear(graph_embedding_dim, out_dim)
 
     def forward(self, data):
         """
@@ -54,8 +59,10 @@ class NNConvModel(nn.Module):
         graph_embed = self.lin1(out)
         out = F.relu(graph_embed)
         out = self.lin2(out)
-        return out.view(-1), graph_embed, node_embed
-
+        if self.task == "regression":
+            return out.view(-1), graph_embed, node_embed
+        else:
+            return F.log_softmax(out, dim =1), graph_embed, node_embed
 
 class HighwayGateLayer(nn.Module):
     def __init__(self, in_out_size, bias=True):
