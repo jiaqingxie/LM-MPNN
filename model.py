@@ -13,7 +13,7 @@ class ChemBERTaForPropertyPrediction(nn.Module):
 
     def forward(self, input_ids, attention_mask=None):
         """
-        Output: prediction: (batch_size, 1)
+        Output: prediction: (batch_size,)
                 graph embedding: (batch_size, hidden_size)
                 node embedding: (batch_size, seq_len, hidden_size)
         """
@@ -37,8 +37,9 @@ class NNConvModel(nn.Module):
 
     def forward(self, data):
         """
-        Output: prediction: (batch_size, 1)
+        Output: prediction: (batch_size,)
                 graph embedding: (batch_size, graph_embedding_dim)
+                node embedding: (num_nodes, dim)
         """
         out = F.relu(self.lin0(data.x))
         h = out.unsqueeze(0)
