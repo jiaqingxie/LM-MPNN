@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default='cpu', help='Run codes on cuda or cpu')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs on training')
-    parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--pretrained', type=str, default='v2', help='Model choice: v1 / v2 / gpt')
     parser.add_argument('--dataset', type=str, default='ESOL', help='Dataset name')
@@ -71,15 +71,15 @@ if __name__ == "__main__":
     print("Finished loading. ")
 
     # dataloader
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
-    valid_loader = DataLoader(valid_dataset, batch_size=128, shuffle=False)
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
     # BERT model
     bert_model = ChemBERTaForPropertyPrediction(chemberta_model=pretrain_chemberta,
                                                 out_dim=args.out_dim,
                                                 task=args.task).to(args.device)
-    bert_optimizer = torch.optim.Adam(bert_model.parameters(), lr=1e-3)
+    bert_optimizer = torch.optim.Adam(bert_model.parameters(), lr=args.lr)
     bert_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(bert_optimizer, mode='min',
                                                                 factor=0.7, patience=5,
                                                                 min_lr=0.00001)
@@ -90,7 +90,7 @@ if __name__ == "__main__":
                             embed_dim=pretrain_chemberta.config.hidden_size,
                             out_dim=args.out_dim,
                             task=args.task).to(args.device)
-    gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=1e-3)
+    gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=args.lr)
     gnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(gnn_optimizer, mode='min',
                                                                factor=0.7, patience=5,
                                                                min_lr=0.00001)

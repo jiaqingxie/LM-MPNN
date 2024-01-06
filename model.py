@@ -130,14 +130,15 @@ class LateFusionModel(nn.Module):
 
 
 class JointFusionModel(nn.Module):
-    def __init__(self, chemberta_model, num_features, node_embed_dim, graph_embed_dim):
+    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
+        self.task = task
         self.chemberta = chemberta_model
-        self.node_embed_dim = node_embed_dim
+        self.node_embed_dim = embed_dim
         self.word_embeddings = nn.Embedding(chemberta_model.config.vocab_size,
                                             chemberta_model.config.hidden_size,
                                             padding_idx=chemberta_model.config.pad_token_id)
-        self.gnn_model = NNConvModel(num_features, node_embed_dim, graph_embed_dim)
+        self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
         self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
 
     def forward(self, batch):
@@ -151,5 +152,8 @@ class JointFusionModel(nn.Module):
 
         outputs = self.chemberta(inputs_embeds=fused_embeds, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
-        return self.regressor(hidden_states[:,0]).view(-1)
+        if self.task == "reg":
+            return self.regressor(hidden_states[:, 0]).view(-1)
+        elif self.task == "clf":
+            return F.log_softmax(self.regressor(hidden_states[:, 0]), 1)
 
