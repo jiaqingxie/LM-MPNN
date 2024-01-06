@@ -10,31 +10,31 @@ class ChemBERTaForPropertyPrediction(nn.Module):
         super().__init__()
         self.task = task
         self.chemberta = chemberta_model
-        self.regressor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
+        self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, input_ids, attention_mask):
         """
-        Output: prediction: (batch_size,)
+        Output: prediction: (batch_size,) or (batch_size, out_dim)
                 graph embedding: (batch_size, hidden_size)
                 node embedding: (batch_size, seq_len, hidden_size)
         """
         outputs = self.chemberta(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
         if self.task == "reg":
-            return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0], hidden_states
+            return self.predictor(hidden_states[:,0]).view(-1), hidden_states[:,0], hidden_states
         elif self.task == "clf":
-            return F.log_softmax(self.regressor(hidden_states[:,0]), 1), hidden_states[:,0], hidden_states
+            return F.log_softmax(self.predictor(hidden_states[:,0]), dim=1), hidden_states[:,0], hidden_states
 
 
 class NNConvModel(nn.Module):
     def __init__(self, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
-        self.lin0 = Linear(num_features, hidden_dim)
 
+        self.task = task
+        self.lin0 = Linear(num_features, hidden_dim)
         nn = Sequential(Linear(3, 128), ReLU(), Linear(128, hidden_dim * hidden_dim))
         self.conv = NNConv(hidden_dim, hidden_dim, nn, aggr='mean')
         self.gru = GRU(hidden_dim, hidden_dim)
-        self.task = task
         self.set2set = Set2Set(embed_dim, processing_steps=3)
         self.lin1 = torch.nn.Linear(hidden_dim, embed_dim)
         self.lin2 = torch.nn.Linear(embed_dim * 2, embed_dim)
@@ -42,7 +42,7 @@ class NNConvModel(nn.Module):
 
     def forward(self, data):
         """
-        Output: prediction: (batch_size,)
+        Output: prediction: (batch_size,) or (batch_size, out_dim)
                 graph embedding: (batch_size, embed_dim)
                 node embedding: (num_nodes, embed_dim)
         """
@@ -65,23 +65,22 @@ class NNConvModel(nn.Module):
             return F.log_softmax(out, dim=1), graph_embed, node_embed
 
 
-# class NNConvModel(nn.Module):
+# class OldNNConvModel(nn.Module):
 #     def __init__(self, num_features, dim, graph_embed_dim, out_dim, task):
 #         super().__init__()
+#         self.task = task
 #         self.lin0 = Linear(num_features, dim)
-#
 #         nn = Sequential(Linear(3, 128), ReLU(), Linear(128, dim * dim))
 #         self.conv = NNConv(dim, dim, nn, aggr='mean')
 #         self.gru = GRU(dim, dim)
-#         self.task = task
 #         self.set2set = Set2Set(dim, processing_steps=3)
 #         self.lin1 = torch.nn.Linear(2 * dim, graph_embed_dim)
 #         self.lin2 = torch.nn.Linear(graph_embed_dim, out_dim)
 #
 #     def forward(self, data):
 #         """
-#         Output: prediction: (batch_size,)
-#                 graph embedding: (batch_size, graph_embedding_dim)
+#         Output: prediction: (batch_size,) or (batch_size, out_dim)
+#                 graph embedding: (batch_size, graph_embed_dim)
 #                 node embedding: (num_nodes, dim)
 #         """
 #         out = F.relu(self.lin0(data.x))
@@ -121,16 +120,19 @@ class LateFusionModel(nn.Module):
         self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model, out_dim, task)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
         self.gate = HighwayGateLayer(embed_dim)
-        self.regressor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
+        self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
+        """
+        Output: prediction: (batch_size,) or (batch_size, out_dim)
+        """
         _, bert_graph_embed, _ = self.bert_model(batch.input_ids, batch.attention_mask)
         _, gnn_graph_embed, _ = self.gnn_model(batch)
         fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
         if self.task == "reg":
-            return self.regressor(fusion_graph_embed).view(-1)
+            return self.predictor(fusion_graph_embed).view(-1)
         elif self.task == "clf":
-            return F.log_softmax(self.regressor(fusion_graph_embed), 1)
+            return F.log_softmax(self.predictor(fusion_graph_embed), dim=1)
 
 
 class JointFusionModel(nn.Module):
@@ -143,9 +145,12 @@ class JointFusionModel(nn.Module):
                                             chemberta_model.config.hidden_size,
                                             padding_idx=chemberta_model.config.pad_token_id)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
-        self.regressor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
+        self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
+        """
+        Output: prediction: (batch_size,) or (batch_size, out_dim)
+        """
         input_ids, attention_mask, mol_mask = batch.input_ids, batch.attention_mask, batch.mol_mask
         bert_embeds = self.word_embeddings(input_ids)
         _, _, gnn_embeds = self.gnn_model(batch)
@@ -157,7 +162,7 @@ class JointFusionModel(nn.Module):
         outputs = self.chemberta(inputs_embeds=fused_embeds, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
         if self.task == "reg":
-            return self.regressor(hidden_states[:, 0]).view(-1)
+            return self.predictor(hidden_states[:, 0]).view(-1)
         elif self.task == "clf":
-            return F.log_softmax(self.regressor(hidden_states[:, 0]), 1)
+            return F.log_softmax(self.predictor(hidden_states[:, 0]), dim=1)
 
