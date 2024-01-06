@@ -49,7 +49,7 @@ if __name__ == "__main__":
                                                        factor=0.7, patience=5,
                                                        min_lr=0.00001)
 
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in range(num_epochs):
         lr = scheduler.optimizer.param_groups[0]['lr']
         property_model.train()
         loss_all = 0
