@@ -23,10 +23,6 @@ def test(loader, model, target, std, args):
         return acc / len(loader.dataset)
 
 
-    pred = model(data).argmax(dim=1)
-    correct = (pred[data.test_mask] == data.y[data.test_mask]).sum()
-    acc = int(correct) / int(data.test_mask.sum())
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default='cpu', help='Run codes on cuda or cpu')
@@ -50,18 +46,26 @@ if __name__ == "__main__":
 
     # dataset
     print("Loading and preprocessing dataset...")
-    dataset = LM_MoleculeNet(root='data/ModifiedMol/{}'.format(args.dataset), name=args.dataset).shuffle()
 
+    dataset = None
+    if args.dataset == 'QM9':
+        dataset = LM_QM9(root='data/ModifiedQM9').shuffle()
+    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL"]:
+        dataset = LM_MoleculeNet(root='data/ModifiedMol/{}'.format(args.dataset), name=args.dataset).shuffle()
     target_std = None
     if args.task == "reg":
         mean, std = dataset.data.y.mean(dim=0, keepdim=True), dataset.data.y.std(dim=0, keepdim=True)
         target_mean, target_std = mean[:, args.target].to(args.device), std[:, args.target].to(args.device)
         dataset.data.y = (dataset.data.y - mean) / std
-
-    valid_dataset = dataset[:int(len(dataset) * args.valid_size)]
-    test_dataset = dataset[int(len(dataset) * args.valid_size):int(len(dataset) * \
-                                                                  (args.test_size +args.valid_size))]
-    train_dataset = dataset[int(len(dataset) * (args.test_size + args.valid_size)):]
+    if args.dataset == 'QM9':
+        test_dataset = dataset[:10000]
+        valid_dataset = dataset[10000:20000]
+        train_dataset = dataset[20000:]
+    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL"]:
+        valid_dataset = dataset[:int(len(dataset) * args.valid_size)]
+        test_dataset = dataset[int(len(dataset) * args.valid_size):int(len(dataset) * \
+                                                                    (args.test_size +args.valid_size))]
+        train_dataset = dataset[int(len(dataset) * (args.test_size + args.valid_size)):]
     print("Finished loading. ")
 
     # dataloader
