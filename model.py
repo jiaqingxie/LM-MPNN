@@ -24,27 +24,27 @@ class ChemBERTaForPropertyPrediction(nn.Module):
             return self.regressor(hidden_states[:,0]).view(-1), hidden_states[:,0], hidden_states
         elif self.task == "clf":
             return F.log_softmax(self.regressor(hidden_states[:,0]), 1), hidden_states[:,0], hidden_states
-            
 
 
 class NNConvModel(nn.Module):
-    def __init__(self, num_features, dim, graph_embedding_dim, out_dim, task):
+    def __init__(self, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
-        self.lin0 = Linear(num_features, dim)
-        
-        nn = Sequential(Linear(3, 128), ReLU(), Linear(128, dim * dim))
-        self.conv = NNConv(dim, dim, nn, aggr='mean')
-        self.gru = GRU(dim, dim)
+        self.lin0 = Linear(num_features, hidden_dim)
+
+        nn = Sequential(Linear(3, 128), ReLU(), Linear(128, hidden_dim * hidden_dim))
+        self.conv = NNConv(hidden_dim, hidden_dim, nn, aggr='mean')
+        self.gru = GRU(hidden_dim, hidden_dim)
         self.task = task
-        self.set2set = Set2Set(dim, processing_steps=3)
-        self.lin1 = torch.nn.Linear(2 * dim, graph_embedding_dim)
-        self.lin2 = torch.nn.Linear(graph_embedding_dim, out_dim)
+        self.set2set = Set2Set(embed_dim, processing_steps=3)
+        self.lin1 = torch.nn.Linear(hidden_dim, embed_dim)
+        self.lin2 = torch.nn.Linear(embed_dim * 2, embed_dim)
+        self.lin3 = torch.nn.Linear(embed_dim, out_dim)
 
     def forward(self, data):
         """
         Output: prediction: (batch_size,)
-                graph embedding: (batch_size, graph_embedding_dim)
-                node embedding: (num_nodes, dim)
+                graph embedding: (batch_size, embed_dim)
+                node embedding: (num_nodes, embed_dim)
         """
         out = F.relu(self.lin0(data.x))
         h = out.unsqueeze(0)
@@ -54,15 +54,55 @@ class NNConvModel(nn.Module):
             out, h = self.gru(m.unsqueeze(0), h)
             out = out.squeeze(0)
 
-        node_embed = out
-        out = self.set2set(node_embed, data.batch)
-        graph_embed = self.lin1(out)
-        out = F.relu(graph_embed)
-        out = self.lin2(out)
-        if self.task == "regression":
+        node_embed = self.lin1(out)
+        set2set_out = self.set2set(node_embed, data.batch)
+        graph_embed = self.lin2(set2set_out)
+        out = self.lin3(graph_embed)
+
+        if self.task == "reg":
             return out.view(-1), graph_embed, node_embed
-        else:
-            return F.log_softmax(out, dim =1), graph_embed, node_embed
+        elif self.task == "clf":
+            return F.log_softmax(out, dim=1), graph_embed, node_embed
+
+
+# class NNConvModel(nn.Module):
+#     def __init__(self, num_features, dim, graph_embed_dim, out_dim, task):
+#         super().__init__()
+#         self.lin0 = Linear(num_features, dim)
+#
+#         nn = Sequential(Linear(3, 128), ReLU(), Linear(128, dim * dim))
+#         self.conv = NNConv(dim, dim, nn, aggr='mean')
+#         self.gru = GRU(dim, dim)
+#         self.task = task
+#         self.set2set = Set2Set(dim, processing_steps=3)
+#         self.lin1 = torch.nn.Linear(2 * dim, graph_embed_dim)
+#         self.lin2 = torch.nn.Linear(graph_embed_dim, out_dim)
+#
+#     def forward(self, data):
+#         """
+#         Output: prediction: (batch_size,)
+#                 graph embedding: (batch_size, graph_embedding_dim)
+#                 node embedding: (num_nodes, dim)
+#         """
+#         out = F.relu(self.lin0(data.x))
+#         h = out.unsqueeze(0)
+#
+#         for i in range(3):
+#             m = F.relu(self.conv(out, data.edge_index, data.edge_attr))
+#             out, h = self.gru(m.unsqueeze(0), h)
+#             out = out.squeeze(0)
+#
+#         node_embed = out
+#         out = self.set2set(node_embed, data.batch)
+#         graph_embed = self.lin1(out)
+#         out = F.relu(graph_embed)
+#         out = self.lin2(out)
+#
+#         if self.task == "reg":
+#             return out.view(-1), graph_embed, node_embed
+#         elif self.task == "clf":
+#             return F.log_softmax(out, dim=1), graph_embed, node_embed
+
 
 class HighwayGateLayer(nn.Module):
     def __init__(self, in_out_size, bias=True):
@@ -75,11 +115,11 @@ class HighwayGateLayer(nn.Module):
 
 
 class LateFusionModel(nn.Module):
-    def __init__(self, chemberta_model, num_features, node_embed_dim, graph_embed_dim):
+    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
-        self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model)
-        self.gnn_model = NNConvModel(num_features, node_embed_dim, graph_embed_dim)
-        self.gate = HighwayGateLayer(graph_embed_dim)
+        self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model, out_dim, task)
+        self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
+        self.gate = HighwayGateLayer(embed_dim)
         self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
 
     def forward(self, batch):
