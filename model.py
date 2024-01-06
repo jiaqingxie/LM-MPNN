@@ -117,16 +117,20 @@ class HighwayGateLayer(nn.Module):
 class LateFusionModel(nn.Module):
     def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
+        self.task = task
         self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model, out_dim, task)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
         self.gate = HighwayGateLayer(embed_dim)
-        self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
+        self.regressor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
         _, bert_graph_embed, _ = self.bert_model(batch.input_ids, batch.attention_mask)
         _, gnn_graph_embed, _ = self.gnn_model(batch)
         fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
-        return self.regressor(fusion_graph_embed).view(-1)
+        if self.task == "reg":
+            return self.regressor(fusion_graph_embed).view(-1)
+        elif self.task == "clf":
+            return F.log_softmax(self.regressor(fusion_graph_embed), 1)
 
 
 class JointFusionModel(nn.Module):
@@ -139,7 +143,7 @@ class JointFusionModel(nn.Module):
                                             chemberta_model.config.hidden_size,
                                             padding_idx=chemberta_model.config.pad_token_id)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
-        self.regressor = nn.Linear(chemberta_model.config.hidden_size, 1)
+        self.regressor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
         input_ids, attention_mask, mol_mask = batch.input_ids, batch.attention_mask, batch.mol_mask
