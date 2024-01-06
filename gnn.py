@@ -64,9 +64,9 @@ if __name__ == "__main__":
     print("Finished loading. ")
 
     # dataloader
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
-    valid_loader = DataLoader(valid_dataset, batch_size=128, shuffle=False)
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
     # model
     gnn_model = NNConvModel(num_features=dataset.num_features,
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     #                         graph_embed_dim=args.graph_embed_dim,
     #                         out_dim=args.out_dim,
     #                         task=args.task).to(args.device)
-    gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=0.001)
+    gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=args.lr)
     gnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(gnn_optimizer, mode='min',
                                                                factor=0.7, patience=5,
                                                                min_lr=0.00001)
