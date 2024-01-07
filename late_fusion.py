@@ -78,12 +78,12 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
     # late fusion model
-    late_model = LateFusionModel(chemberta_model=pretrain_chemberta,
-                                 num_features=dataset.num_features,
-                                 hidden_dim=args.gnn_hidden_dim,
-                                 embed_dim=pretrain_chemberta.config.hidden_size,
-                                 out_dim=args.out_dim,
-                                 task=args.task).to(args.device)
+    late_model = LateFusion(chemberta_model=pretrain_chemberta,
+                            num_features=dataset.num_features,
+                            hidden_dim=args.gnn_hidden_dim,
+                            embed_dim=pretrain_chemberta.config.hidden_size,
+                            out_dim=args.out_dim,
+                            task=args.task).to(args.device)
     late_optimizer = torch.optim.Adam(late_model.parameters(), lr=args.lr)
     late_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(late_optimizer, mode='min',
                                                                 factor=0.7, patience=5,
@@ -122,7 +122,7 @@ if __name__ == "__main__":
                 best_valid_metric = valid_metric
             if test_metric < best_test_metric:
                 best_test_metric = test_metric
-            print(f'Epoch: {epoch:03d}, LR: {lr:4f}, Loss: {train_loss:.4f}, '
+            print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, '
                   f'Val MAE: {valid_metric:.4f}, Best Val MAE: {best_valid_metric:.4f}, '
                   f'Test MAE: {test_metric:.4f}, Best Test MAE: {best_test_metric:.4f}')
         elif args.task == "clf":
@@ -130,7 +130,7 @@ if __name__ == "__main__":
                 best_valid_metric = valid_metric
             if test_metric > best_test_metric:
                 best_test_metric = test_metric
-            print(f'Epoch: {epoch:03d}, LR: {lr:4f}, Loss: {train_loss:.4f}, '
+            print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, '
                   f'Val ACC: {valid_metric:.4f}, Best Val ACC: {best_valid_metric:.4f}, '
                   f'Test ACC: {test_metric:.4f}, Best Test ACC: {best_test_metric:.4f}')
 

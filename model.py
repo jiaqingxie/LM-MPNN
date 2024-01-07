@@ -12,12 +12,13 @@ class ChemBERTaForPropertyPrediction(nn.Module):
         self.chemberta = chemberta_model
         self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, batch):
         """
         Output: prediction: (batch_size,) or (batch_size, out_dim)
                 graph embedding: (batch_size, hidden_size)
                 node embedding: (batch_size, seq_len, hidden_size)
         """
+        input_ids, attention_mask = batch.input_ids, batch.attention_mask
         outputs = self.chemberta(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
         if self.task == "reg":
@@ -113,7 +114,7 @@ class HighwayGateLayer(nn.Module):
         return out_transform * x + (1 - out_transform) * y
 
 
-class LateFusionModel(nn.Module):
+class LateFusion(nn.Module):
     def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
         self.task = task
@@ -126,7 +127,7 @@ class LateFusionModel(nn.Module):
         """
         Output: prediction: (batch_size,) or (batch_size, out_dim)
         """
-        _, bert_graph_embed, _ = self.bert_model(batch.input_ids, batch.attention_mask)
+        _, bert_graph_embed, _ = self.bert_model(batch)
         _, gnn_graph_embed, _ = self.gnn_model(batch)
         fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
         if self.task == "reg":
@@ -135,7 +136,7 @@ class LateFusionModel(nn.Module):
             return F.log_softmax(self.predictor(fusion_graph_embed), dim=1)
 
 
-class JointFusionModel(nn.Module):
+class JointFusionGNN2LM(nn.Module):
     def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
         super().__init__()
         self.task = task
@@ -165,4 +166,24 @@ class JointFusionModel(nn.Module):
             return self.predictor(hidden_states[:, 0]).view(-1)
         elif self.task == "clf":
             return F.log_softmax(self.predictor(hidden_states[:, 0]), dim=1)
+
+
+class JointFusionLM2GNN(nn.Module):
+    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
+        super().__init__()
+        self.task = task
+        self.node_embed_dim = embed_dim
+        self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model, out_dim, task)
+        self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
+        self.proj = nn.Linear(embed_dim, num_features)
+        self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
+
+    def forward(self, batch):
+        """
+        Output: prediction: (batch_size,) or (batch_size, out_dim)
+        """
+        _, _, bert_node_embed = self.bert_model(batch)
+        batch.x = F.normalize(batch.x) + self.proj(bert_node_embed.reshape(-1, self.node_embed_dim)[batch.mol_mask.view(-1)])
+        pred, _, _ = self.gnn_model(batch)
+        return pred
 

@@ -40,6 +40,7 @@ if __name__ == "__main__":
     parser.add_argument('--target', type=int, default=0, help='target index of y')
     parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
+    parser.add_argument('--joint', type=str, default='gnn2lm', help='Joint choice: gnn2lm / lm2gnn')
     args = parser.parse_args()
 
     if args.pretrained == "v2":
@@ -78,12 +79,20 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
     # joint fusion model
-    joint_model = JointFusionModel(chemberta_model=pretrain_chemberta,
-                                   num_features=dataset.num_features,
-                                   hidden_dim=args.gnn_hidden_dim,
-                                   embed_dim=pretrain_chemberta.config.hidden_size,
-                                   out_dim=args.out_dim,
-                                   task=args.task).to(args.device)
+    if args.joint == 'gnn2lm':
+        joint_model = JointFusionGNN2LM(chemberta_model=pretrain_chemberta,
+                                        num_features=dataset.num_features,
+                                        hidden_dim=args.gnn_hidden_dim,
+                                        embed_dim=pretrain_chemberta.config.hidden_size,
+                                        out_dim=args.out_dim,
+                                        task=args.task).to(args.device)
+    elif args.joint == 'lm2gnn':
+        joint_model = JointFusionLM2GNN(chemberta_model=pretrain_chemberta,
+                                        num_features=dataset.num_features,
+                                        hidden_dim=args.gnn_hidden_dim,
+                                        embed_dim=pretrain_chemberta.config.hidden_size,
+                                        out_dim=args.out_dim,
+                                        task=args.task).to(args.device)
     joint_optimizer = torch.optim.Adam(joint_model.parameters(), lr=args.lr)
     joint_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(joint_optimizer, mode='min',
                                                                  factor=0.7, patience=5,
@@ -122,7 +131,7 @@ if __name__ == "__main__":
                 best_valid_metric = valid_metric
             if test_metric < best_test_metric:
                 best_test_metric = test_metric
-            print(f'Epoch: {epoch:03d}, LR: {lr:4f}, Loss: {train_loss:.4f}, '
+            print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, '
                   f'Val MAE: {valid_metric:.4f}, Best Val MAE: {best_valid_metric:.4f}, '
                   f'Test MAE: {test_metric:.4f}, Best Test MAE: {best_test_metric:.4f}')
         elif args.task == "clf":
@@ -130,7 +139,7 @@ if __name__ == "__main__":
                 best_valid_metric = valid_metric
             if test_metric > best_test_metric:
                 best_test_metric = test_metric
-            print(f'Epoch: {epoch:03d}, LR: {lr:4f}, Loss: {train_loss:.4f}, '
+            print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, '
                   f'Val ACC: {valid_metric:.4f}, Best Val ACC: {best_valid_metric:.4f}, '
                   f'Test ACC: {test_metric:.4f}, Best Test ACC: {best_test_metric:.4f}')
 
