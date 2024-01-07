@@ -15,13 +15,13 @@ def test(loader, model, std, args):
         error = 0
         for data in loader:
             data = data.to(args.device)
-            error += (model(data.input_ids, data.attention_mask)[0] * std - data.y[:, args.target] * std).abs().sum().item()  # MAE for regression
+            error += (model(data)[0] * std - data.y[:, args.target] * std).abs().sum().item()  # MAE for regression
         return error / len(loader.dataset)
     else:
         acc = 0
         for data in loader:
             data = data.to(args.device)
-            acc += (model(data.input_ids, data.attention_mask)[0].argmax(dim=1) == data.y[:, args.target]).sum()  # Acc for classification
+            acc += (model(data)[0].argmax(dim=1) == data.y[:, args.target]).sum()  # Acc for classification
         return acc / len(loader.dataset)
 
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
                               neg_gnn_node_embed (num_nodes, node_embed_dim) as negative.
             """
             batch = batch.to(args.device)
-            bert_pred, _, bert_node_embed = bert_model(batch.input_ids, batch.attention_mask)
+            bert_pred, _, bert_node_embed = bert_model(batch)
             _, _, gnn_node_embed = gnn_model(batch)
             bert_node_embed = bert_node_embed[batch.mol_mask]
             neg_gnn_node_embed = gnn_node_embed[torch.randperm(gnn_node_embed.shape[0])]

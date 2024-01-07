@@ -14,13 +14,13 @@ def test(loader, model, std, args):
         error = 0
         for data in loader:
             data = data.to(args.device)
-            error += (model(data.input_ids, data.attention_mask)[0] * std - data.y[:, args.target] * std).abs().sum().item()  # MAE for regression
+            error += (model(data)[0] * std - data.y[:, args.target] * std).abs().sum().item()  # MAE for regression
         return error / len(loader.dataset)
     else:
         acc = 0
         for data in loader:
             data = data.to(args.device)
-            acc += (model(data.input_ids, data.attention_mask)[0].argmax(dim=1) == data.y[:, args.target]).sum()  # Acc for classification
+            acc += (model(data)[0].argmax(dim=1) == data.y[:, args.target]).sum()  # Acc for classification
         return acc / len(loader.dataset)
 
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
         loss_all = 0
         for batch in train_loader:
             batch = batch.to(args.device)
-            outputs, _, _ = property_model(batch.input_ids, batch.attention_mask)
+            outputs, _, _ = property_model(batch)
             if args.task == "reg":
                 loss = F.mse_loss(outputs, batch.y[:, args.target])
             elif args.task == "clf":
