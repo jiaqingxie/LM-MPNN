@@ -66,44 +66,6 @@ class NNConvModel(nn.Module):
             return F.log_softmax(out, dim=1), graph_embed, node_embed
 
 
-# class OldNNConvModel(nn.Module):
-#     def __init__(self, num_features, dim, graph_embed_dim, out_dim, task):
-#         super().__init__()
-#         self.task = task
-#         self.lin0 = Linear(num_features, dim)
-#         nn = Sequential(Linear(3, 128), ReLU(), Linear(128, dim * dim))
-#         self.conv = NNConv(dim, dim, nn, aggr='mean')
-#         self.gru = GRU(dim, dim)
-#         self.set2set = Set2Set(dim, processing_steps=3)
-#         self.lin1 = torch.nn.Linear(2 * dim, graph_embed_dim)
-#         self.lin2 = torch.nn.Linear(graph_embed_dim, out_dim)
-#
-#     def forward(self, data):
-#         """
-#         Output: prediction: (batch_size,) or (batch_size, out_dim)
-#                 graph embedding: (batch_size, graph_embed_dim)
-#                 node embedding: (num_nodes, dim)
-#         """
-#         out = F.relu(self.lin0(data.x))
-#         h = out.unsqueeze(0)
-#
-#         for i in range(3):
-#             m = F.relu(self.conv(out, data.edge_index, data.edge_attr))
-#             out, h = self.gru(m.unsqueeze(0), h)
-#             out = out.squeeze(0)
-#
-#         node_embed = out
-#         out = self.set2set(node_embed, data.batch)
-#         graph_embed = self.lin1(out)
-#         out = F.relu(graph_embed)
-#         out = self.lin2(out)
-#
-#         if self.task == "reg":
-#             return out.view(-1), graph_embed, node_embed
-#         elif self.task == "clf":
-#             return F.log_softmax(out, dim=1), graph_embed, node_embed
-
-
 class HighwayGateLayer(nn.Module):
     def __init__(self, in_out_size, bias=True):
         super(HighwayGateLayer, self).__init__()

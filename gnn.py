@@ -75,11 +75,6 @@ if __name__ == "__main__":
                             embed_dim=args.graph_embed_dim,
                             out_dim=args.out_dim,
                             task=args.task).to(args.device)
-    # gnn_model = OldNNConvModel(num_features=dataset.num_features,
-    #                            dim=args.gnn_hidden_dim,
-    #                            graph_embed_dim=args.graph_embed_dim,
-    #                            out_dim=args.out_dim,
-    #                            task=args.task).to(args.device)
     gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=args.lr)
     gnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(gnn_optimizer, mode='min',
                                                                factor=0.7, patience=5,
