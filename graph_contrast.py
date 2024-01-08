@@ -28,7 +28,7 @@ def test(loader, model, std, args):
 if __name__ == "__main__":
     # args
     parser = argparse.ArgumentParser()
-    parser.add_argument('--device', type=str, default='cpu', help='Run codes on cuda or cpu')
+    parser.add_argument('--device', type=str, default='cpu', help='cpu / cuda')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs on training')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
