@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
     parser.add_argument('--joint', type=str, default='gnn2lm', help='Joint choice: gnn2lm / lm2gnn')
+    parser.add_argument('--aggr', type=str, default='sum', help='Aggregation choice: sum / max / concat')
     args = parser.parse_args()
 
     if args.pretrained == "v2":
@@ -85,14 +86,16 @@ if __name__ == "__main__":
                                         hidden_dim=args.gnn_hidden_dim,
                                         embed_dim=pretrain_chemberta.config.hidden_size,
                                         out_dim=args.out_dim,
-                                        task=args.task).to(args.device)
+                                        task=args.task,
+                                        aggr=args.aggr).to(args.device)
     elif args.joint == 'lm2gnn':
         joint_model = JointFusionLM2GNN(chemberta_model=pretrain_chemberta,
                                         num_features=dataset.num_features,
                                         hidden_dim=args.gnn_hidden_dim,
                                         embed_dim=pretrain_chemberta.config.hidden_size,
                                         out_dim=args.out_dim,
-                                        task=args.task).to(args.device)
+                                        task=args.task,
+                                        aggr=args.aggr).to(args.device)
     joint_optimizer = torch.optim.Adam(joint_model.parameters(), lr=args.lr)
     joint_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(joint_optimizer, mode='min',
                                                                  factor=0.7, patience=5,

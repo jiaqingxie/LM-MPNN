@@ -99,15 +99,17 @@ class LateFusion(nn.Module):
 
 
 class JointFusionGNN2LM(nn.Module):
-    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
+    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task, aggr):
         super().__init__()
         self.task = task
+        self.aggr = aggr
         self.chemberta = chemberta_model
         self.node_embed_dim = embed_dim
         self.word_embeddings = nn.Embedding(chemberta_model.config.vocab_size,
                                             chemberta_model.config.hidden_size,
                                             padding_idx=chemberta_model.config.pad_token_id)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
+        self.concat2embed = nn.Linear(embed_dim * 2, embed_dim)
         self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
@@ -119,7 +121,14 @@ class JointFusionGNN2LM(nn.Module):
         _, _, gnn_embeds = self.gnn_model(batch)
 
         bert_embeds = bert_embeds.reshape(-1, self.node_embed_dim)
-        bert_embeds[batch.mol_mask.view(-1)] += gnn_embeds
+        if self.aggr == "sum":
+            bert_embeds[batch.mol_mask.view(-1)] += gnn_embeds
+        elif self.aggr == "max":
+            max_embeds = torch.maximum(bert_embeds[batch.mol_mask.view(-1)], gnn_embeds)
+            bert_embeds[batch.mol_mask.view(-1)] = max_embeds
+        elif self.aggr == "concat":
+            concat_embeds = torch.cat([bert_embeds[batch.mol_mask.view(-1)], gnn_embeds], dim=1)
+            bert_embeds[batch.mol_mask.view(-1)] = self.concat2embed(concat_embeds)
         fused_embeds = bert_embeds.reshape(batch.num_graphs, -1, self.node_embed_dim)
 
         outputs = self.chemberta(inputs_embeds=fused_embeds, attention_mask=attention_mask, output_hidden_states=True)
@@ -131,13 +140,15 @@ class JointFusionGNN2LM(nn.Module):
 
 
 class JointFusionLM2GNN(nn.Module):
-    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
+    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task, aggr):
         super().__init__()
         self.task = task
+        self.aggr = aggr
         self.node_embed_dim = embed_dim
         self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model, out_dim, task)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
-        self.proj = nn.Linear(embed_dim, num_features)
+        self.embed2fea = nn.Linear(embed_dim, num_features)
+        self.concat2fea = nn.Linear(num_features + embed_dim, num_features)
         self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
@@ -145,7 +156,14 @@ class JointFusionLM2GNN(nn.Module):
         Output: prediction: (batch_size,) or (batch_size, out_dim)
         """
         _, _, bert_node_embed = self.bert_model(batch)
-        batch.x = F.normalize(batch.x) + self.proj(bert_node_embed.reshape(-1, self.node_embed_dim)[batch.mol_mask.view(-1)])
+        batch.x = F.normalize(batch.x)
+        bert_embeds = bert_node_embed.reshape(-1, self.node_embed_dim)[batch.mol_mask.view(-1)]
+        if self.aggr == "sum":
+            batch.x += self.embed2fea(bert_embeds)
+        elif self.aggr == "max":
+            batch.x = torch.maximum(batch.x, self.embed2fea(bert_embeds))
+        elif self.aggr == "concat":
+            batch.x = self.concat2fea(torch.cat([batch.x, bert_embeds], dim=1))
         pred, _, _ = self.gnn_model(batch)
         return pred
 
