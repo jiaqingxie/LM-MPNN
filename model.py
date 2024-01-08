@@ -77,12 +77,14 @@ class HighwayGateLayer(nn.Module):
 
 
 class LateFusion(nn.Module):
-    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task):
+    def __init__(self, chemberta_model, num_features, hidden_dim, embed_dim, out_dim, task, aggr):
         super().__init__()
         self.task = task
+        self.aggr = aggr
         self.bert_model = ChemBERTaForPropertyPrediction(chemberta_model, out_dim, task)
         self.gnn_model = NNConvModel(num_features, hidden_dim, embed_dim, out_dim, task)
         self.gate = HighwayGateLayer(embed_dim)
+        self.concat2embed = nn.Linear(embed_dim * 2, embed_dim)
         self.predictor = nn.Linear(chemberta_model.config.hidden_size, out_dim)
 
     def forward(self, batch):
@@ -91,7 +93,16 @@ class LateFusion(nn.Module):
         """
         _, bert_graph_embed, _ = self.bert_model(batch)
         _, gnn_graph_embed, _ = self.gnn_model(batch)
-        fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
+
+        if self.aggr == "sum":
+            fusion_graph_embed = bert_graph_embed + gnn_graph_embed
+        elif self.aggr == "max":
+            fusion_graph_embed = torch.maximum(bert_graph_embed, gnn_graph_embed)
+        elif self.aggr == "concat":
+            fusion_graph_embed = self.concat2embed(torch.cat([bert_graph_embed, gnn_graph_embed], dim=1))
+        elif self.aggr == "gate":
+            fusion_graph_embed = self.gate(bert_graph_embed, gnn_graph_embed)
+
         if self.task == "reg":
             return self.predictor(fusion_graph_embed).view(-1)
         elif self.task == "clf":

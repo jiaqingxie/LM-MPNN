@@ -9,7 +9,7 @@ Geometry Injection of Molecule with Contrastive Learning
 **BBBP**: ```python baseline.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
 **ESOL**: ```python baseline.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python baseline.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
---pretrained: v1 / v2 / gpt
+--pretrained: v1/v2/gpt   
 
 ### Baseline: Message Passing Neural Networks (GNN)
 **HIV**: ```python gnn.py --dataset HIV --out_dim 2 --task clf --device cuda```   
@@ -24,8 +24,8 @@ Geometry Injection of Molecule with Contrastive Learning
 **BBBP**: ```python node_contrast.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
 **ESOL**: ```python node_contrast.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python node_contrast.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
---pretrained: v1 / v2 / gpt   
---weight_cl: a float number
+--pretrained: v1/v2/gpt   
+--weight_cl: a float number   
 
 ### Graph-Level Contrastive Learning
 **HIV**: ```python graph_contrast.py --dataset HIV --out_dim 2 --task clf --device cuda```   
@@ -33,8 +33,8 @@ Geometry Injection of Molecule with Contrastive Learning
 **BBBP**: ```python graph_contrast.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
 **ESOL**: ```python graph_contrast.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python graph_contrast.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
---pretrained: v1 / v2 / gpt   
---weight_cl: a float number
+--pretrained: v1/v2/gpt   
+--weight_cl: a float number   
 
 ### Late Fusion
 **HIV**: ```python late_fusion.py --dataset HIV --out_dim 2 --task clf --device cuda```   
@@ -42,7 +42,8 @@ Geometry Injection of Molecule with Contrastive Learning
 **BBBP**: ```python late_fusion.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
 **ESOL**: ```python late_fusion.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python late_fusion.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
---pretrained: v1 / v2 / gpt
+--pretrained: v1/v2/gpt   
+--aggr: sum/max/concat/gate   
 
 ### Joint Fusion
 **HIV**: ```python joint_fusion.py --dataset HIV --out_dim 2 --task clf --device cuda```   
@@ -50,7 +51,7 @@ Geometry Injection of Molecule with Contrastive Learning
 **BBBP**: ```python joint_fusion.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
 **ESOL**: ```python joint_fusion.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python joint_fusion.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
---pretrained: v1 / v2 / gpt   
---joint: gnn2lm / lm2gnn   
---aggr: sum / max / concat
+--pretrained: v1/v2/gpt   
+--joint: gnn2lm/lm2gnn   
+--aggr: sum/max/concat   
 
