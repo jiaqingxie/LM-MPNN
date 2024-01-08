@@ -126,3 +126,13 @@ if __name__ == "__main__":
                   f'Val ACC: {valid_metric:.4f}, Best Val ACC: {best_valid_metric:.4f}, '
                   f'Test ACC: {test_metric:.4f}, Best Test ACC: {best_test_metric:.4f}')
 
+    print("########################################")
+    print("Method: GNN Baseline")
+    print(f"Dataset: {args.dataset}")
+    print(f"Task: {args.task}")
+    print(f"Number of epochs: {args.epochs}")
+    if args.task == "reg":
+        print(f"Best Test MAE: {best_test_metric:.4f}")
+    elif args.task == "clf":
+        print(f"Best Test ACC: {best_test_metric:.4f}")
+    print("########################################")

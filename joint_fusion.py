@@ -146,3 +146,16 @@ if __name__ == "__main__":
                   f'Val ACC: {valid_metric:.4f}, Best Val ACC: {best_valid_metric:.4f}, '
                   f'Test ACC: {test_metric:.4f}, Best Test ACC: {best_test_metric:.4f}')
 
+    print("########################################")
+    print("Method: Joint Fusion")
+    print(f"Dataset: {args.dataset}")
+    print(f"Task: {args.task}")
+    print(f"Pretrained model: {args.pretrained}")
+    print(f"Number of epochs: {args.epochs}")
+    print(f"Joint order: {args.joint}")
+    print(f"Aggregation: {args.aggr}")
+    if args.task == "reg":
+        print(f"Best Test MAE: {best_test_metric:.4f}")
+    elif args.task == "clf":
+        print(f"Best Test ACC: {best_test_metric:.4f}")
+    print("########################################")

@@ -160,3 +160,16 @@ if __name__ == "__main__":
             print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, Target Loss: {target_loss:.4f}, '
                   f'Val ACC: {valid_metric:.4f}, Best Val ACC: {best_valid_metric:.4f}, '
                   f'Test ACC: {test_metric:.4f}, Best Test ACC: {best_test_metric:.4f}')
+
+    print("########################################")
+    print("Method: Graph-Level Contrastive Learning")
+    print(f"Dataset: {args.dataset}")
+    print(f"Task: {args.task}")
+    print(f"Pretrained model: {args.pretrained}")
+    print(f"Number of epochs: {args.epochs}")
+    print(f"Contrastive loss weight: {args.weight_cl}")
+    if args.task == "reg":
+        print(f"Best Test MAE: {best_test_metric:.4f}")
+    elif args.task == "clf":
+        print(f"Best Test ACC: {best_test_metric:.4f}")
+    print("########################################")
