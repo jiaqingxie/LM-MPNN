@@ -17,6 +17,7 @@ Geometry Injection of Molecule with Contrastive Learning
 **BBBP**: ```python gnn.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
 **ESOL**: ```python gnn.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python gnn.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
+--graph_model: mpnn/gnn   
 
 ### Node-Level Contrastive Learning
 **HIV**: ```python node_contrast.py --dataset HIV --out_dim 2 --task clf --device cuda```   
@@ -55,4 +56,4 @@ Geometry Injection of Molecule with Contrastive Learning
 --pretrained: v1/v2/gpt   
 --joint: gnn2lm/lm2gnn   
 --aggr: sum/max/concat   
---aggr: mpnn/gnn   
+--graph_model: mpnn/gnn   
