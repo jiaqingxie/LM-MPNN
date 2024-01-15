@@ -42,6 +42,7 @@ if __name__ == "__main__":
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
     parser.add_argument('--joint', type=str, default='gnn2lm', help='Joint choice: gnn2lm / lm2gnn')
     parser.add_argument('--aggr', type=str, default='sum', help='Aggregation choice: sum / max / concat')
+    parser.add_argument('--graph_model', type=str, default='mpnn', help='mpnn / gnn')
     args = parser.parse_args()
 
     if args.pretrained == "v2":
@@ -83,6 +84,7 @@ if __name__ == "__main__":
     if args.joint == 'gnn2lm':
         joint_model = JointFusionGNN2LM(chemberta_model=pretrain_chemberta,
                                         num_features=dataset.num_features,
+                                        graph_model=args.graph_model,
                                         hidden_dim=args.gnn_hidden_dim,
                                         embed_dim=pretrain_chemberta.config.hidden_size,
                                         out_dim=args.out_dim,
@@ -91,6 +93,7 @@ if __name__ == "__main__":
     elif args.joint == 'lm2gnn':
         joint_model = JointFusionLM2GNN(chemberta_model=pretrain_chemberta,
                                         num_features=dataset.num_features,
+                                        graph_model=args.graph_model,
                                         hidden_dim=args.gnn_hidden_dim,
                                         embed_dim=pretrain_chemberta.config.hidden_size,
                                         out_dim=args.out_dim,

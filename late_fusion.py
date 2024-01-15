@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
     parser.add_argument('--aggr', type=str, default='sum', help='Aggregation choice: sum / max / concat / gate')
+    parser.add_argument('--graph_model', type=str, default='mpnn', help='mpnn / gnn')
     args = parser.parse_args()
 
     if args.pretrained == "v2":
@@ -81,6 +82,7 @@ if __name__ == "__main__":
     # late fusion model
     late_model = LateFusion(chemberta_model=pretrain_chemberta,
                             num_features=dataset.num_features,
+                            graph_model=args.graph_model,
                             hidden_dim=args.gnn_hidden_dim,
                             embed_dim=pretrain_chemberta.config.hidden_size,
                             out_dim=args.out_dim,

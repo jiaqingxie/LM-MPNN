@@ -44,6 +44,7 @@ Geometry Injection of Molecule with Contrastive Learning
 **QM9**: ```python late_fusion.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
 --pretrained: v1/v2/gpt   
 --aggr: sum/max/concat/gate   
+--graph_model: mpnn/gnn   
 
 ### Joint Fusion
 **HIV**: ```python joint_fusion.py --dataset HIV --out_dim 2 --task clf --device cuda```   
@@ -54,4 +55,4 @@ Geometry Injection of Molecule with Contrastive Learning
 --pretrained: v1/v2/gpt   
 --joint: gnn2lm/lm2gnn   
 --aggr: sum/max/concat   
-
+--aggr: mpnn/gnn   

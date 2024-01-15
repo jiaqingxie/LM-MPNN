@@ -39,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
     parser.add_argument('--graph_embed_dim', type=int, default=384, help='graph embedding dimension')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
+    parser.add_argument('--graph_model', type=str, default='mpnn', help='mpnn / gnn')
     args = parser.parse_args()
 
     # dataset
@@ -70,11 +71,18 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
     # model
-    gnn_model = NNConvModel(num_features=dataset.num_features,
-                            hidden_dim=args.gnn_hidden_dim,
-                            embed_dim=args.graph_embed_dim,
-                            out_dim=args.out_dim,
-                            task=args.task).to(args.device)
+    if args.graph_model == 'mpnn':
+        gnn_model = NNConvModel(num_features=dataset.num_features,
+                                hidden_dim=args.gnn_hidden_dim,
+                                embed_dim=args.graph_embed_dim,
+                                out_dim=args.out_dim,
+                                task=args.task).to(args.device)
+    elif args.graph_model == 'gnn':
+        gnn_model = GCNModel(num_features=dataset.num_features,
+                             hidden_dim=args.gnn_hidden_dim,
+                             embed_dim=args.graph_embed_dim,
+                             out_dim=args.out_dim,
+                             task=args.task).to(args.device)
     gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=args.lr)
     gnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(gnn_optimizer, mode='min',
                                                                factor=0.7, patience=5,
