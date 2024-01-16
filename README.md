@@ -11,12 +11,12 @@ Geometry Injection of Molecule with Contrastive Learning
 **QM9**: ```python baseline.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
 --pretrained: v1/v2/gpt   
 
-### Baseline: Message Passing Neural Networks (GNN)
-**HIV**: ```python gnn.py --dataset HIV --out_dim 2 --task clf --device cuda```   
-**BACE**: ```python gnn.py --dataset BACE --out_dim 2 --task clf --device cuda```   
-**BBBP**: ```python gnn.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
-**ESOL**: ```python gnn.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
-**QM9**: ```python gnn.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
+### Baseline: Message Passing Neural Networks (MPNN)
+**HIV**: ```python mpnn.py --dataset HIV --out_dim 2 --task clf --device cuda```   
+**BACE**: ```python mpnn.py --dataset BACE --out_dim 2 --task clf --device cuda```   
+**BBBP**: ```python mpnn.py --dataset BBBP --out_dim 2 --task clf --device cuda```   
+**ESOL**: ```python mpnn.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
+**QM9**: ```python mpnn.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
 --graph_model: mpnn/gnn   
 
 ### Node-Level Contrastive Learning
