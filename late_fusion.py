@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('--valid_size', type=float, default=0.1, help='valid ratio')
     parser.add_argument('--task', type=str, default='reg', help='reg or clf')
     parser.add_argument('--target', type=int, default=0, help='target index of y')
-    parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
+    parser.add_argument('--mpnn_hidden_dim', type=int, default=64, help='mpnn hidden dimension')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
     parser.add_argument('--aggr', type=str, default='sum', help='Aggregation choice: sum / max / concat / gate')
     parser.add_argument('--graph_model', type=str, default='mpnn', help='mpnn / gnn')
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     late_model = LateFusion(chemberta_model=pretrain_chemberta,
                             num_features=dataset.num_features,
                             graph_model=args.graph_model,
-                            hidden_dim=args.gnn_hidden_dim,
+                            hidden_dim=args.mpnn_hidden_dim,
                             embed_dim=pretrain_chemberta.config.hidden_size,
                             out_dim=args.out_dim,
                             task=args.task,

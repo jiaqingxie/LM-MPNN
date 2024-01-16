@@ -54,6 +54,6 @@ Geometry Injection of Molecule with Contrastive Learning
 **ESOL**: ```python joint_fusion.py --dataset ESOL --out_dim 1 --task reg --device cuda```   
 **QM9**: ```python joint_fusion.py --dataset QM9 --out_dim 1 --task reg --device cuda```   
 --pretrained: v1/v2/gpt   
---joint: gnn2lm/lm2gnn   
+--joint: mpnn2lm/lm2mpnn   
 --aggr: sum/max/concat   
 --graph_model: mpnn/gnn   
