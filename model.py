@@ -141,7 +141,6 @@ class JointFusionGNN2LM(nn.Module):
             concat_embeds = torch.cat([bert_embeds[batch.mol_mask.view(-1)], gnn_embeds], dim=1)
             bert_embeds[batch.mol_mask.view(-1)] = self.concat2embed(concat_embeds)
         fused_embeds = bert_embeds.reshape(batch.num_graphs, -1, self.node_embed_dim)
-
         outputs = self.chemberta(inputs_embeds=fused_embeds, attention_mask=attention_mask, output_hidden_states=True)
         hidden_states = outputs.hidden_states[-1]
         if self.task == "reg":

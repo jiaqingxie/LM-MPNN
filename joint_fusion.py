@@ -42,8 +42,10 @@ if __name__ == "__main__":
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
     parser.add_argument('--joint', type=str, default='gnn2lm', help='Joint choice: gnn2lm / lm2gnn')
     parser.add_argument('--aggr', type=str, default='sum', help='Aggregation choice: sum / max / concat')
-    args = parser.parse_args()
+    parser.add_argument('--seed', type=int, default=7, help='seed')
 
+    args = parser.parse_args()
+    torch.manual_seed(args.seed)
     if args.pretrained == "v2":
         pretrain_chemberta = AutoModelWithLMHead.from_pretrained("DeepChem/ChemBERTa-10M-MTR")
     elif args.pretrained == "v1":
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     dataset = None
     if args.dataset == 'QM9':
         dataset = LM_QM9(root='data/ModifiedQM9').shuffle()
-    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL"]:
+    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL", "FreeSolv"]:
         dataset = LM_MoleculeNet(root='data/ModifiedMol/{}'.format(args.dataset), name=args.dataset).shuffle()
     target_std = None
     if args.task == "reg":
@@ -68,7 +70,7 @@ if __name__ == "__main__":
         test_dataset = dataset[:10000]
         valid_dataset = dataset[10000:20000]
         train_dataset = dataset[20000:]
-    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL"]:
+    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL", "FreeSolv"]:
         valid_dataset = dataset[:int(len(dataset) * args.valid_size)]
         test_dataset = dataset[int(len(dataset) * args.valid_size):int(len(dataset) * (args.test_size + args.valid_size))]
         train_dataset = dataset[int(len(dataset) * (args.test_size + args.valid_size)):]

@@ -41,21 +41,22 @@ if __name__ == "__main__":
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
     parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
     parser.add_argument('--weight_cl', type=float, default=1.0, help='weight of contrastive loss')
+    parser.add_argument('--seed', type=int, default=7, help='seed')
     args = parser.parse_args()
-
+    torch.manual_seed(args.seed)
     if args.pretrained == "v2":
         pretrain_chemberta = AutoModelWithLMHead.from_pretrained("DeepChem/ChemBERTa-10M-MTR")
     elif args.pretrained == "v1":
         pretrain_chemberta = AutoModelWithLMHead.from_pretrained("seyonec/ChemBERTa-zinc-base-v1")
     elif args.pretrained == "gpt":
         pass
-
+    
     # dataset
     print("Loading and preprocessing dataset ...")
     dataset = None
     if args.dataset == 'QM9':
         dataset = LM_QM9(root='data/ModifiedQM9').shuffle()
-    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL"]:
+    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL", "FreeSolv"]:
         dataset = LM_MoleculeNet(root='data/ModifiedMol/{}'.format(args.dataset), name=args.dataset).shuffle()
     target_std = None
     if args.task == "reg":
@@ -67,7 +68,7 @@ if __name__ == "__main__":
         test_dataset = dataset[:10000]
         valid_dataset = dataset[10000:20000]
         train_dataset = dataset[20000:]
-    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL"]:
+    elif args.dataset in ["BACE", "BBBP", "HIV", "ESOL", "FreeSolv"]:
         valid_dataset = dataset[:int(len(dataset) * args.valid_size)]
         test_dataset = dataset[int(len(dataset) * args.valid_size):int(len(dataset) * (args.test_size + args.valid_size))]
         train_dataset = dataset[int(len(dataset) * (args.test_size + args.valid_size)):]
