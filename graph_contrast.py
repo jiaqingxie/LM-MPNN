@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument('--task', type=str, default='reg', help='reg or clf')
     parser.add_argument('--target', type=int, default=0, help='target index of y')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
-    parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
+    parser.add_argument('--mpnn_hidden_dim', type=int, default=64, help='mpnn hidden dimension')
     parser.add_argument('--weight_cl', type=float, default=1.0, help='weight of contrastive loss')
     parser.add_argument('--seed', type=int, default=7, help='seed')
     args = parser.parse_args()
@@ -88,16 +88,16 @@ if __name__ == "__main__":
                                                                 factor=0.7, patience=5,
                                                                 min_lr=0.00001)
 
-    # GNN model
-    gnn_model = NNConvModel(num_features=dataset.num_features,
-                            hidden_dim=args.gnn_hidden_dim,
-                            embed_dim=pretrain_chemberta.config.hidden_size,
-                            out_dim=args.out_dim,
-                            task=args.task).to(args.device)
-    gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=args.lr)
-    gnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(gnn_optimizer, mode='min',
-                                                               factor=0.7, patience=5,
-                                                               min_lr=0.00001)
+    # MPNN model
+    mpnn_model = NNConvModel(num_features=dataset.num_features,
+                             hidden_dim=args.mpnn_hidden_dim,
+                             embed_dim=pretrain_chemberta.config.hidden_size,
+                             out_dim=args.out_dim,
+                             task=args.task).to(args.device)
+    mpnn_optimizer = torch.optim.Adam(mpnn_model.parameters(), lr=args.lr)
+    mpnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(mpnn_optimizer, mode='min',
+                                                                factor=0.7, patience=5,
+                                                                min_lr=0.00001)
 
     # training loop
     print("Started training ...")
@@ -108,33 +108,33 @@ if __name__ == "__main__":
 
     for epoch in range(args.epochs):
         bert_model.train()
-        gnn_model.train()
+        mpnn_model.train()
         loss_all = 0
 
         for batch in train_loader:
             """
             Contrastive idea: Within a batch,
-                              bert_graph_embed (batch_size, graph_embed_dim) as anchor,
-                              gnn_graph_embed (batch_size, graph_embed_dim) as positive,
-                              neg_gnn_graph_embed (batch_size, graph_embed_dim) as negative.
+                              bert_graph_embed (batch_size, embed_dim) as anchor,
+                              mpnn_graph_embed (batch_size, embed_dim) as positive,
+                              neg_mpnn_graph_embed (batch_size, embed_dim) as negative.
             """
             batch = batch.to(args.device)
             bert_pred, bert_graph_embed, _ = bert_model(batch)
-            _, gnn_graph_embed, _ = gnn_model(batch)
-            neg_gnn_graph_embed = gnn_graph_embed[torch.roll(torch.arange(len(batch)), -1)]
+            _, mpnn_graph_embed, _ = mpnn_model(batch)
+            neg_mpnn_graph_embed = mpnn_graph_embed[torch.roll(torch.arange(len(batch)), -1)]
 
             if args.task == "reg":
                 target_loss = F.mse_loss(bert_pred, batch.y[:, args.target])
             elif args.task == "clf":
                 target_loss = F.nll_loss(bert_pred, batch.y[:, args.target].type(torch.LongTensor).to(args.device))
-            contrastive_loss = F.triplet_margin_loss(bert_graph_embed, gnn_graph_embed, neg_gnn_graph_embed)
+            contrastive_loss = F.triplet_margin_loss(bert_graph_embed, mpnn_graph_embed, neg_mpnn_graph_embed)
             loss = target_loss + args.weight_cl * contrastive_loss
 
             bert_optimizer.zero_grad()
-            gnn_optimizer.zero_grad()
+            mpnn_optimizer.zero_grad()
             loss.backward()
             bert_optimizer.step()
-            gnn_optimizer.step()
+            mpnn_optimizer.step()
             loss_all += loss.item() * batch.num_graphs
             target_loss_all = target_loss.item() * batch.num_graphs
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
         target_loss = target_loss_all / len(train_loader.dataset)
         valid_metric = test(valid_loader, bert_model, target_std, args)
         bert_scheduler.step(valid_metric)
-        gnn_scheduler.step(valid_metric)
+        mpnn_scheduler.step(valid_metric)
         test_metric = test(test_loader, bert_model, target_std, args)
 
         if args.task == "reg":

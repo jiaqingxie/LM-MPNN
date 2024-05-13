@@ -36,10 +36,15 @@ if __name__ == "__main__":
     parser.add_argument('--valid_size', type=float, default=0.1, help='valid ratio')
     parser.add_argument('--task', type=str, default='reg', help='reg or clf')
     parser.add_argument('--target', type=int, default=0, help='target index of y')
-    parser.add_argument('--gnn_hidden_dim', type=int, default=64, help='gnn hidden dimension')
-    parser.add_argument('--graph_embed_dim', type=int, default=384, help='graph embedding dimension')
+    parser.add_argument('--mpnn_hidden_dim', type=int, default=64, help='mpnn hidden dimension')
+    parser.add_argument('--embed_dim', type=int, default=384, help='embedding dimension')
     parser.add_argument('--out_dim', type=int, default=1, help='number of classes')
+
     parser.add_argument('--seed', type=int, default=7, help='seed')
+
+    parser.add_argument('--graph_model', type=str, default='mpnn', help='mpnn / gnn')
+    args = parser.parse_args()
+
 
     args = parser.parse_args()
     torch.manual_seed(args.seed)
@@ -73,15 +78,22 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
     # model
-    gnn_model = NNConvModel(num_features=dataset.num_features,
-                            hidden_dim=args.gnn_hidden_dim,
-                            embed_dim=args.graph_embed_dim,
+    if args.graph_model == 'mpnn':
+        model = NNConvModel(num_features=dataset.num_features,
+                            hidden_dim=args.mpnn_hidden_dim,
+                            embed_dim=args.embed_dim,
                             out_dim=args.out_dim,
                             task=args.task).to(args.device)
-    gnn_optimizer = torch.optim.Adam(gnn_model.parameters(), lr=args.lr)
-    gnn_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(gnn_optimizer, mode='min',
-                                                               factor=0.7, patience=5,
-                                                               min_lr=0.00001)
+    elif args.graph_model == 'gnn':
+        model = GCNModel(num_features=dataset.num_features,
+                         hidden_dim=args.mpnn_hidden_dim,
+                         embed_dim=args.embed_dim,
+                         out_dim=args.out_dim,
+                         task=args.task).to(args.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
+                                                           factor=0.7, patience=5,
+                                                           min_lr=0.00001)
 
     # training loop
     print("Started training ...")
@@ -91,26 +103,26 @@ if __name__ == "__main__":
         best_valid_metric, best_test_metric = 0, 0
 
     for epoch in range(args.epochs):
-        lr = gnn_scheduler.optimizer.param_groups[0]['lr']
-        gnn_model.train()
+        lr = scheduler.optimizer.param_groups[0]['lr']
+        model.train()
         loss_all = 0
 
         for batch in train_loader:
             batch = batch.to(args.device)
-            outputs, _, _ = gnn_model(batch)
+            outputs, _, _ = model(batch)
             if args.task == "reg":
                 loss = F.mse_loss(outputs, batch.y[:, args.target])
             elif args.task == "clf":
                 loss = F.nll_loss(outputs, batch.y[:, args.target].type(torch.LongTensor).to(args.device))
-            gnn_optimizer.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
-            gnn_optimizer.step()
+            optimizer.step()
             loss_all += loss.item() * batch.num_graphs
 
         train_loss = loss_all / len(train_loader.dataset)
-        valid_metric = test(valid_loader, gnn_model, target_std, args)
-        gnn_scheduler.step(valid_metric)
-        test_metric = test(test_loader, gnn_model, target_std, args)
+        valid_metric = test(valid_loader, model, target_std, args)
+        scheduler.step(valid_metric)
+        test_metric = test(test_loader, model, target_std, args)
 
         if args.task == "reg":
             if valid_metric < best_valid_metric:
@@ -130,7 +142,7 @@ if __name__ == "__main__":
                   f'Test ACC: {test_metric:.4f}, Best Test ACC: {best_test_metric:.4f}')
 
     print("########################################")
-    print("Method: GNN Baseline")
+    print("Method: MPNN Baseline")
     print(f"Dataset: {args.dataset}")
     print(f"Task: {args.task}")
     print(f"Number of epochs: {args.epochs}")
